@@ -31,6 +31,8 @@ import (
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 	"mime"
+	"io"
+	"html/template"
 )
 
 var (
@@ -41,6 +43,24 @@ var (
 	serverPort        int
 	serverWatch       bool
 )
+
+const loginTemplate = `
+  <head>
+    <title>Parkha.net</title>
+  </head>
+  <body>
+    <div class="container">
+      <h1>login</h1>
+      <br>
+      <form action="{{.Dest}}" method="post">
+        <input type="text" placeholder="Username" name="username" value="">
+         <input type="password" placeholder="Password" name="password" value="">
+        <input class="btn btn-default" type="submit" value="Login">
+      </form>
+    </div>
+  </body>
+  </html>
+`
 
 //var serverCmdV *cobra.Command
 
@@ -201,14 +221,27 @@ func serve(port int) {
 		jww.ERROR.Fatalf("Invalid BaseURL: %s", err)
 	}
 	if u.Path == "" || u.Path == "/" {
+		fmt.Printf("1 register path:%s\n", u.Path)
 		http.Handle("/", fileserver)
 	} else {
+		fmt.Printf("2 register path:%s\n", u.Path)
 		http.Handle(u.Path, http.StripPrefix(u.Path, fileserver))
 	}
 
-	u.Scheme = "http"
+	http.HandleFunc(PRIVATE, tslHandler)
+
+	//u.Scheme = "http"
 	jww.FEEDBACK.Printf("Web Server is available at %s (bind address %s)\n", u.String(), serverInterface)
 	fmt.Println("Press Ctrl+C to stop")
+
+
+	go func() {
+		err = http.ListenAndServeTLS(":443", "/Users/jkpark/Save/Cert/parkha.net.pem", "/Users/jkpark/Save/Cert/parkha.net.key", nil)
+		if err != nil {
+			jww.ERROR.Printf("Error: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}()
 
 	endpoint := net.JoinHostPort(serverInterface, strconv.Itoa(port))
 	err = http.ListenAndServe(endpoint, nil)
@@ -216,6 +249,44 @@ func serve(port int) {
 		jww.ERROR.Printf("Error: %s\n", err.Error())
 		os.Exit(1)
 	}
+}
+
+const (
+	PRIVATE = "/prvt/"
+	SESSION = "ssn"
+)
+
+func tslHandler(w http.ResponseWriter, r *http.Request) {
+	//io.WriteString(w, "Path:" + r.URL.Path)
+	if r.URL.Path == "/prvt/login" {
+		vars := map[string]interface{}{
+			"Dest":       "/prvt/auth?.done="+url.QueryEscape(r.URL.Path),
+		}
+
+		tmpl, err := template.New("template").Parse(loginTemplate)
+		if err != nil {
+			io.WriteString(w, "template failure")
+		} else {
+			err = tmpl.Execute(w, vars)
+
+		}
+	} else if r.URL.Path == "/prvt/auth" {
+		id := r.FormValue("username")
+		pw := r.FormValue("password")
+		if verify(id, pw) {
+			//Set cookie and redirect to .done
+		} else {
+			io.WriteString(w, "Wrong")
+		}
+	} else {
+		io.WriteString(w, "path:"+r.URL.Path)
+	}
+
+}
+
+func verify(id, pw string) bool {
+
+	return false
 }
 
 // fixURL massages the BaseURL into a form needed for serving

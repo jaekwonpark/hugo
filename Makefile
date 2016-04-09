@@ -12,6 +12,10 @@ DIRS=$(shell go list -f {{.Dir}} ./...)
 
 all: gitinfo
 
+build:
+	go build ${LDFLAGS} -o hugo main.go
+	cp hugo ~/bin/
+
 install: install-gitinfo
 
 help:
