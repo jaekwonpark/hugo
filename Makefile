@@ -39,7 +39,7 @@ docker:
 	docker rm hugo-build
 
 
-check: fmt vet test
+check: fmt vet test test-race
 
 cyclo:
 	@for d in $(DIRS) ; do \
@@ -62,6 +62,9 @@ lint:
 
 test:
 	go test ./...
+
+test-race:
+	go test -race ./...
 
 vet:
 	@if [ "`go vet ./... | tee /dev/stderr`" ]; then \

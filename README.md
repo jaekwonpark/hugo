@@ -2,15 +2,14 @@
 
 A Fast and Flexible Static Site Generator built with love by [spf13](http://spf13.com/) and [friends](https://github.com/spf13/hugo/graphs/contributors) in [Go][].
 
-[Website](http://gohugo.io) |
-[Forum](http://discuss.gohugo.io) |
+[Website](https://gohugo.io) |
+[Forum](https://discuss.gohugo.io) |
 [Dev Chat](https://gitter.im/spf13/hugo) |
-[Documentation](http://gohugo.io/overview/introduction/) |
-[Installation Guide](http://gohugo.io/overview/installing/) |
+[Documentation](https://gohugo.io/overview/introduction/) |
+[Installation Guide](https://gohugo.io/overview/installing/) |
 [Twitter](http://twitter.com/spf13)
 
 [![Travis CI status](https://api.travis-ci.org/spf13/hugo.svg?branch=master "Travis CI status")](https://travis-ci.org/spf13/hugo)
-[![wercker status](https://app.wercker.com/status/1a0de7d703ce3b80527f00f675e1eb32/s/master "wercker status")](https://app.wercker.com/project/bykey/1a0de7d703ce3b80527f00f675e1eb32)
 [![Appveyor status](https://ci.appveyor.com/api/projects/status/n2mo912b8s2505e8/branch/master?svg=true "Appveyor status")](https://ci.appveyor.com/project/spf13/hugo/branch/master)
 [![Dev chat at https://gitter.im/spf13/hugo](https://img.shields.io/badge/gitter-dev_chat-46bc99.svg)](https://gitter.im/spf13/hugo?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Go Report Card](https://goreportcard.com/badge/github.com/spf13/hugo)](https://goreportcard.com/report/github.com/spf13/hugo)
@@ -50,7 +49,7 @@ Building the binaries is an easy task for an experienced `go` getter.
 
 ### Install Hugo as Your Site Generator (Binary Install)
 
-Use the [installation instructions in the Hugo documentation](http://gohugo.io/overview/installing/).
+Use the [installation instructions in the Hugo documentation](https://gohugo.io/overview/installing/).
 
 ### Clone the Hugo Project (Contributor)
 
@@ -83,6 +82,8 @@ Use the [installation instructions in the Hugo documentation](http://gohugo.io/o
 
     Go expects all of your libraries to be found in`$GOPATH`.
 
+You can also find a [detailed guide](https://www.gohugo.io/tutorials/how-to-contribute-to-hugo/) in our documentation.
+
 ### Build and Install the Binaries from Source (Advanced Install)
 
 Add Hugo and its package dependencies to your go `src` directory.
@@ -103,7 +104,7 @@ The Hugo community and maintainers are very active and helpful and the project b
 
 [![Throughput Graph](https://graphs.waffle.io/spf13/hugo/throughput.svg)](https://waffle.io/spf13/hugo/metrics)
 
-If you have any questions about how to contribute or what to contribute, please ask on the [forum](http://discuss.gohugo.io).
+If you have any questions about how to contribute or what to contribute, please ask on the [forum](https://discuss.gohugo.io).
 
 ## Code Contribution Guideline
 
