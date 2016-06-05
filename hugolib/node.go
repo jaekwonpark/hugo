@@ -34,6 +34,7 @@ type Node struct {
 	Sitemap     Sitemap
 	URLPath
 	IsHome        bool
+	IsLogin       bool
 	paginator     *Pager
 	paginatorInit sync.Once
 	scratch       *Scratch

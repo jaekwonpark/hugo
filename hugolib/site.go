@@ -1706,12 +1706,29 @@ func (s *Site) newHomeNode() *Node {
 		n.Date = s.Pages[0].Date
 		n.Lastmod = s.Pages[0].Lastmod
 	}
+	if authenticate() {
+		n.IsLogin = true
+	} else {
+		n.IsLogin = false
+	}
 	return n
+}
+
+func authenticate() bool {
+	/*func verifyCookie(r *http.Request) bool {
+		authCookie, _ := r.Cookie(SESSION_COOKIE)
+		fmt.Printf("authCookie:%s\n", authCookie)
+
+		return false
+
+	}*/
+	return true
 }
 
 func (s *Site) renderHomePage() error {
 	n := s.newHomeNode()
 	layouts := s.appendThemeTemplates([]string{"index.html", "_default/list.html"})
+	fmt.Printf("Rendering!%#v\n", layouts)
 
 	if err := s.renderAndWritePage("homepage", helpers.FilePathSeparator, n, layouts...); err != nil {
 		return err
@@ -1774,6 +1791,7 @@ func (s *Site) renderHomePage() error {
 	n.Title = "404 Page not found"
 	n.Permalink = s.permalink("404.html")
 	n.scratch = newScratch()
+	fmt.Printf("IsHome is False\n")
 
 	nfLayouts := []string{"404.html"}
 	if nfErr := s.renderAndWritePage("404 page", "404.html", n, s.appendThemeTemplates(nfLayouts)...); nfErr != nil {
@@ -2000,6 +2018,7 @@ func (s *Site) render(name string, d interface{}, w io.Writer, layouts ...string
 		return nil
 	}
 
+	fmt.Printf("render layout:%#v\n", layout)
 	if err := s.renderThing(d, layout, w); err != nil {
 		// Behavior here should be dependent on if running in server or watch mode.
 		distinctErrorLogger.Printf("Error while rendering %s: %v", name, err)

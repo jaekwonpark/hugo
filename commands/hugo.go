@@ -153,6 +153,8 @@ var (
 	logFile     string
 	theme       string
 	source      string
+	CredFile    string
+	KeyFile     string
 )
 
 // Execute adds all child commands to the root command HugoCmd and sets flags appropriately.
@@ -211,6 +213,8 @@ func initCoreCommonFlags(cmd *cobra.Command) {
 // initHugoBuildCommonFlags initialize common flags related to the Hugo build.
 // Called by initHugoBuilderFlags.
 func initHugoBuildCommonFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&CredFile, "cred", "C", "", "Credential file path")
+	cmd.Flags().StringVarP(&KeyFile, "key", "k", "", "Cipher key file path")
 	cmd.Flags().BoolVar(&cleanDestination, "cleanDestinationDir", false, "Remove files from destination not found in static directories")
 	cmd.Flags().BoolVarP(&draft, "buildDrafts", "D", false, "include content marked as draft")
 	cmd.Flags().BoolVarP(&future, "buildFuture", "F", false, "include content with publishdate in the future")
@@ -328,6 +332,14 @@ func InitializeConfig(subCmdVs ...*cobra.Command) error {
 			return newSystemError(err)
 		}
 		return newSystemErrorF("Unable to locate Config file. Perhaps you need to create a new site.\n       Run `hugo help new` for details. (%s)\n", err)
+	}
+
+	if CredFile == "" {
+		return newSystemError(fmt.Errorf("Missing credential file"))
+	}
+
+	if KeyFile == "" {
+		return newSystemError(fmt.Errorf("Missing secret key file"))
 	}
 
 	viper.RegisterAlias("indexes", "taxonomies")

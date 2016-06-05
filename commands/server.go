@@ -33,6 +33,14 @@ import (
 	"mime"
 	"io"
 	"html/template"
+	"io/ioutil"
+	"crypto/sha1"
+	"bytes"
+	"encoding/base64"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"errors"
 )
 
 var (
@@ -50,12 +58,25 @@ const loginTemplate = `
   </head>
   <body>
     <div class="container">
-      <h1>login</h1>
       <br>
       <form action="{{.Dest}}" method="post">
-        <input type="text" placeholder="Username" name="username" value="">
-         <input type="password" placeholder="Password" name="password" value="">
-        <input class="btn btn-default" type="submit" value="Login">
+         <input type="password" placeholder="" name="password" value="">
+        <input class="btn btn-default" type="submit" value="Auth">
+      </form>
+    </div>
+  </body>
+  </html>
+`
+const changePwTemplate = `
+  <head>
+    <title>Parkha.net</title>
+  </head>
+  <body>
+    <div class="container">
+      <br>
+      <form action="{{.Dest}}" method="post">
+         <input type="password" placeholder="" name="password" value="">
+        <input class="btn btn-default" type="submit" value="Change">
       </form>
     </div>
   </body>
@@ -161,6 +182,22 @@ func server(cmd *cobra.Command, args []string) error {
 	}
 	viper.Set("BaseURL", BaseURL)
 
+	// Read PW file
+	hashedPw, err := ioutil.ReadFile(CredFile)
+	if err != nil || len(hashedPw) < 1 {
+		viper.Set("HashedPw", "")
+	} else {
+		viper.Set("HashedPw", hashedPw)
+	}
+
+	// Read and set Key
+	key, err := ioutil.ReadFile(KeyFile)
+	key = key[:32]
+	if err != nil || len(key) < 1 {
+		return fmt.Errorf("Can not read cipher key file or the file is empty")
+	}
+	viper.Set("Key", string(key))
+
 	if err := memStats(); err != nil {
 		jww.ERROR.Println("memstats error:", err)
 	}
@@ -213,6 +250,8 @@ func serve(port int) {
 
 	httpFs := afero.NewHttpFs(hugofs.Destination())
 	fs := filesOnlyFs{httpFs.Dir(helpers.AbsPathify(viper.GetString("PublishDir")))}
+	fmt.Printf("publishDir:%s\n",viper.GetString("PublishDir"))
+	fmt.Printf("dest:%s\n",hugofs.Destination().Name())
 	fileserver := http.FileServer(fs)
 
 	// We're only interested in the path
@@ -222,10 +261,10 @@ func serve(port int) {
 	}
 	if u.Path == "" || u.Path == "/" {
 		fmt.Printf("1 register path:%s\n", u.Path)
-		http.Handle("/", fileserver)
+		http.Handle("/", SessionFileServer(fs, fileserver))
 	} else {
 		fmt.Printf("2 register path:%s\n", u.Path)
-		http.Handle(u.Path, http.StripPrefix(u.Path, fileserver))
+		http.Handle(u.Path, http.StripPrefix(u.Path, SessionFileServer(fs, fileserver)))
 	}
 
 	http.HandleFunc(PRIVATE, tslHandler)
@@ -236,7 +275,7 @@ func serve(port int) {
 
 
 	go func() {
-		err = http.ListenAndServeTLS(":443", "/Users/jkpark/Save/Cert/parkha.net.pem", "/Users/jkpark/Save/Cert/parkha.net.key", nil)
+		err = http.ListenAndServeTLS(":443", "/home/jkpark/Cert/parkha.net.pem", "/home/jkpark/Cert/parkha.net.key", nil)
 		if err != nil {
 			jww.ERROR.Printf("Error: %s\n", err.Error())
 			os.Exit(1)
@@ -251,14 +290,54 @@ func serve(port int) {
 	}
 }
 
+func SessionFileServer(fs http.FileSystem, handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("File:%s\n", fs)
+		handler.ServeHTTP(w, r)
+	})
+}
+
 const (
 	PRIVATE = "/prvt/"
-	SESSION = "ssn"
+	HOME = "http://parkha.net:8090"
+	SESSION_COOKIE = "auth"
 )
 
 func tslHandler(w http.ResponseWriter, r *http.Request) {
-	//io.WriteString(w, "Path:" + r.URL.Path)
-	if r.URL.Path == "/prvt/login" {
+	fmt.Printf("tslHandler, path:%s\n", r.URL.Path)
+	hashedPw := viper.GetString("HashedPw")
+	fmt.Printf("hashedPw=%#v\n", hashedPw)
+	if hashedPw == "" { // Create a new password
+		if r.URL.Path == "/prvt/pwreset" {
+			fmt.Printf("I'm in pwreset\n")
+			newPw := r.FormValue("password")
+			fmt.Printf("pwNew:%s\n", newPw)
+			hashed := genHash(newPw)
+			fmt.Printf("hashed:%#v\n", hashed)
+			err := ioutil.WriteFile(CredFile, hashed, 0600)
+			if err != nil {
+				panic(err)
+			}
+			viper.Set("HashedPw", string(hashed))
+			fmt.Printf("viper HashedPw:%s\n",viper.GetString("HashedPw"))
+			setCookie(w, hashed)
+			http.Redirect(w, r, PRIVATE, 301)
+		} else {
+			vars := map[string]interface{}{
+				"Dest":       "/prvt/pwreset",
+			}
+			tmpl, err := template.New("template").Parse(changePwTemplate)
+			if err != nil {
+				io.WriteString(w, "template failure")
+			} else {
+				err = tmpl.Execute(w, vars)
+			}
+		}
+	} else if r.URL.Path == "/prvt/login" {
+		if verifyCookie(r) {
+			http.Redirect(w, r, HOME, 301)
+		}
+		fmt.Printf("Show login\n")
 		vars := map[string]interface{}{
 			"Dest":       "/prvt/auth?.done="+url.QueryEscape(r.URL.Path),
 		}
@@ -271,22 +350,125 @@ func tslHandler(w http.ResponseWriter, r *http.Request) {
 
 		}
 	} else if r.URL.Path == "/prvt/auth" {
-		id := r.FormValue("username")
-		pw := r.FormValue("password")
-		if verify(id, pw) {
-			//Set cookie and redirect to .done
+		h := sha1.New()
+		h.Write([]byte(r.FormValue("password")))
+		bs := h.Sum(nil)
+		fmt.Printf("bs:%#v\nhasedPw:%#v\n",bs, viper.GetString("HashedPw"))
+		if bytes.Equal(bs, []byte(viper.GetString("HashedPw"))) {
+			setCookie(w, bs)
+			http.Redirect(w, r, HOME, 301)
 		} else {
 			io.WriteString(w, "Wrong")
 		}
+	} else if verifyCookie(r) {
+		io.WriteString(w, "Welcome to "+r.URL.Path)
 	} else {
-		io.WriteString(w, "path:"+r.URL.Path)
+		io.WriteString(w, "Not authorized to view "+r.URL.Path)
 	}
 
 }
 
-func verify(id, pw string) bool {
+func setCookie(w http.ResponseWriter, hashed []byte) {
+	expiration := time.Now().Add(1*time.Minute)
+	signedCookie := sign(expiration)
 
-	return false
+	fmt.Printf("signedCooke:%s\n", signedCookie)
+
+	cookie := http.Cookie{Name: SESSION_COOKIE,Value:signedCookie,Expires:expiration}
+	http.SetCookie(w, &cookie)
+}
+
+func genHash(str string) []byte {
+	h := sha1.New()
+	h.Write([]byte(str))
+	return h.Sum(nil)
+}
+
+func sign(expiresAt time.Time) string {
+
+	key := viper.GetString("Key")
+	payload := fmt.Sprintf("%s^%d", key, expiresAt.Unix())
+	signature, err := encrypt(key, payload)
+	if err != nil {
+		panic(fmt.Errorf("Failed in encrypt:%s", err))
+	}
+
+	return signature
+}
+
+func encrypt(key, text string) (string, error) {
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	ciphertext := make([]byte, aes.BlockSize+len(text))
+	iv := ciphertext[:aes.BlockSize]
+	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
+		return "", err
+	}
+	cfb := cipher.NewCFBEncrypter(block, iv)
+	cfb.XORKeyStream(ciphertext[aes.BlockSize:], []byte(text))
+
+	signature := base64.StdEncoding.EncodeToString(ciphertext)
+	return signature, nil
+}
+
+func decrypt(key, text string) (string, error) {
+
+	data, err := base64.StdEncoding.DecodeString(string(text))
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+	if len(data) < aes.BlockSize {
+		return "", errors.New("ciphertext too short")
+	}
+	iv := data[:aes.BlockSize]
+	text2 := data[aes.BlockSize:]
+	cfb := cipher.NewCFBDecrypter(block, iv)
+	cfb.XORKeyStream(text2, text2)
+
+	return string(text2), nil
+}
+
+func verifyCookie(r *http.Request) bool {
+	authCookie, _ := r.Cookie(SESSION_COOKIE)
+	fmt.Printf("authCookie:%s\n", authCookie)
+	if authCookie == nil || authCookie.Value == "" {
+		return false
+	}
+	key := viper.GetString("Key")
+	fmt.Printf("key=%v\n", key)
+	decrypted, err := decrypt(key, authCookie.Value)
+	if err != nil {
+		return false
+	}
+	fmt.Printf("decrypted=%s\n", decrypted)
+	parts := strings.Split(decrypted, "^")
+	if len(parts) != 2 || parts[0] != key || isExpired(parts[1]) {
+		return false
+	}
+
+	fmt.Printf("decrypted key=%s\n", parts[0])
+	fmt.Printf("decrypted time=%s\n", parts[1])
+
+	return true
+
+}
+
+func isExpired(timestamp string) bool {
+	i, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return false
+	}
+	tm := time.Unix(i, 0)
+	now := time.Now()
+	return tm.Unix() < now.Unix()
 }
 
 // fixURL massages the BaseURL into a form needed for serving
