@@ -25,6 +25,12 @@ then look for a `config.yaml` file, followed by a `config.json` file.
 The config file is a site-wide config. The config file provides directions to
 hugo on how to build the site as well as site-wide parameters and menus.
 
+Site configuration can also be set as environment variables in your operating system. The command below will work on *nix systems and overrides the site title. Note that all the variable names must be prefixed with "HUGO_".
+
+```bash
+env HUGO_TITLE="Some Title" hugo
+```
+
 ## Examples
 
 The following is an example of a typical yaml config file:
@@ -96,7 +102,9 @@ Following is a list of Hugo-defined variables that you can configure and their c
     # Do not build Sitemap file
     disableSitemap:             false
     # Build robots.txt file
-    enableRobotsTXT:           false
+    enableRobotsTXT:            false
+    # Do not render 404 page
+    disable404:                 false
     # edit new content with this editor, if provided
     editor:                     ""
     # Enable Emoji emoticons support for page content.
@@ -148,7 +156,7 @@ Following is a list of Hugo-defined variables that you can configure and their c
     # Do not make the url/path to lowercase
     disablePathToLower:         false
     # if true, auto-detect Chinese/Japanese/Korean Languages in the content. (.Summary and .WordCount can work properly in CJKLanguage)
-    hasCJKLanguage              false
+    hasCJKLanguage:             false
     # verbose output
     verbose:                    false
     # verbose logging
@@ -257,7 +265,7 @@ Its behavior can be modified with the <code>latexDashes</code> flag listed below
 
 <tr>
 <td><code><strong>plainIDAnchors</strong></code></td>
-<td><code>false</code></td>
+<td><code>true</code></td>
 <td><code>FootnoteAnchorPrefix</code> and <code>HeaderIDSuffix</code></td>
 </tr>
 <tr>

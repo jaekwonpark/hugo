@@ -44,13 +44,14 @@ matter, content or derived from file location.
 **.TableOfContents** The rendered table of contents for this content.<br>
 **.Prev** Pointer to the previous content (based on pub date).<br>
 **.Next** Pointer to the following content (based on pub date).<br>
-**.PrevInSection** Pointer to the previous content within the same section (based on pub date)<br>
+**.PrevInSection** Pointer to the previous content within the same section (based on pub date). For example, `{{if .PrevInSection}}{{.PrevInSection.Permalink}}{{end}}`.<br>
 **.NextInSection** Pointer to the following content within the same section (based on pub date)<br>
 **.FuzzyWordCount** The approximate number of words in the content.<br>
 **.WordCount** The number of words in the content.<br>
 **.ReadingTime** The estimated time it takes to read the content in minutes.<br>
 **.Weight** Assigned weight (in the front matter) to this content, used in sorting.<br>
 **.RawContent** Raw Markdown content without the metadata header. Useful with [remarkjs.com](http://remarkjs.com)<br>
+**.UniqueID** The MD5-checksum of the page's filename
 **.Draft** A boolean, `true` if the content is marked as a draft in the front matter.<br>
 **.IsNode** Always false for pages.<br>
 **.IsPage** Always true for page.<br>
@@ -93,7 +94,7 @@ In Hugo you can declare params both for the site and the individual page.  A com
 With the `Param` method the most specific value will be selected for you, and it is safe to use it in any template (it's defined on both Page and Node):
 
 ```
-$.Param("image")
+$.Param "image"
 ```
 
 ## Node Variables
@@ -163,7 +164,7 @@ Also available is `.Site` which has the following:
 
 Also available is `.Hugo` which has the following:
 
-**.Hugo.Generator** Meta tag for the version of Hugo that generated the site. Highly recommended to be included by default in all theme headers so we can start to track Hugo usage and popularity. e.g. `<meta name="generator" content="Hugo 0.13" />`<br>
+**.Hugo.Generator** Meta tag for the version of Hugo that generated the site. Highly recommended to be included by default in all theme headers so we can start to track the usage and popularity of Hugo. Unlike other variables it outputs a **complete** HTML tag, e.g. `<meta name="generator" content="Hugo 0.15" />`<br>
 **.Hugo.Version** The current version of the Hugo binary you are using e.g. `0.13-DEV`<br>
 **.Hugo.CommitHash** The git commit hash of the current Hugo binary e.g. `0e8bed9ccffba0df554728b46c5bbf6d78ae5247`<br>
 **.Hugo.BuildDate** The compile date of the current Hugo binary formatted with RFC 3339 e.g. `2002-10-02T10:00:00-05:00`<br>

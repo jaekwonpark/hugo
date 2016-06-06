@@ -149,7 +149,7 @@ func TestRenderThing(t *testing.T) {
 	}{
 		{pageSimpleTitle, templateTitle, "simple template"},
 		{pageSimpleTitle, templateFunc, "simple-template"},
-		{pageWithMd, templateContent, "\n\n<h1 id=\"heading-1:91b5c4a22fc6103c73bb91e4a40568f8\">heading 1</h1>\n\n<p>text</p>\n\n<h2 id=\"heading-2:91b5c4a22fc6103c73bb91e4a40568f8\">heading 2</h2>\n\n<p>more text</p>\n"},
+		{pageWithMd, templateContent, "\n\n<h1 id=\"heading-1\">heading 1</h1>\n\n<p>text</p>\n\n<h2 id=\"heading-2\">heading 2</h2>\n\n<p>more text</p>\n"},
 		{simplePageRFC3339Date, templateDate, "2013-05-17 16:59:30 &#43;0000 UTC"},
 	}
 
@@ -593,14 +593,14 @@ func TestSkipRender(t *testing.T) {
 		doc      string
 		expected string
 	}{
-		{filepath.FromSlash("sect/doc1.html"), "\n\n<h1 id=\"title:5d74edbb89ef198cd37882b687940cda\">title</h1>\n\n<p>some <em>content</em></p>\n"},
+		{filepath.FromSlash("sect/doc1.html"), "\n\n<h1 id=\"title\">title</h1>\n\n<p>some <em>content</em></p>\n"},
 		{filepath.FromSlash("sect/doc2.html"), "<!doctype html><html><body>more content</body></html>"},
-		{filepath.FromSlash("sect/doc3.html"), "\n\n<h1 id=\"doc3:28c75a9e2162b8eccda73a1ab9ce80b4\">doc3</h1>\n\n<p><em>some</em> content</p>\n"},
-		{filepath.FromSlash("sect/doc4.html"), "\n\n<h1 id=\"doc4:f8e6806123f341b8975509637645a4d3\">doc4</h1>\n\n<p><em>some content</em></p>\n"},
+		{filepath.FromSlash("sect/doc3.html"), "\n\n<h1 id=\"doc3\">doc3</h1>\n\n<p><em>some</em> content</p>\n"},
+		{filepath.FromSlash("sect/doc4.html"), "\n\n<h1 id=\"doc4\">doc4</h1>\n\n<p><em>some content</em></p>\n"},
 		{filepath.FromSlash("sect/doc5.html"), "<!doctype html><html><head><script src=\"script.js\"></script></head><body>body5</body></html>"},
 		{filepath.FromSlash("sect/doc6.html"), "<!doctype html><html><head><script src=\"http://auth/bub/script.js\"></script></head><body>body5</body></html>"},
 		{filepath.FromSlash("doc7.html"), "<html><body>doc7 content</body></html>"},
-		{filepath.FromSlash("sect/doc8.html"), "\n\n<h1 id=\"title:0ae308ad73e2f37bd09874105281b5d8\">title</h1>\n\n<p>some <em>content</em></p>\n"},
+		{filepath.FromSlash("sect/doc8.html"), "\n\n<h1 id=\"title\">title</h1>\n\n<p>some <em>content</em></p>\n"},
 	}
 
 	for _, test := range tests {
@@ -628,54 +628,60 @@ func TestAbsURLify(t *testing.T) {
 		{filepath.FromSlash("sect/doc1.html"), []byte("<!doctype html><html><head></head><body><a href=\"#frag1\">link</a></body></html>")},
 		{filepath.FromSlash("content/blue/doc2.html"), []byte("---\nf: t\n---\n<!doctype html><html><body>more content</body></html>")},
 	}
-	for _, canonify := range []bool{true, false} {
-		viper.Set("CanonifyURLs", canonify)
-		viper.Set("BaseURL", "http://auth/bub")
-		s := &Site{
-			Source:  &source.InMemorySource{ByteSource: sources},
-			targets: targetList{page: &target.PagePub{UglyURLs: true}},
-		}
-		t.Logf("Rendering with BaseURL %q and CanonifyURLs set %v", viper.GetString("baseURL"), canonify)
-		s.initializeSiteInfo()
+	for _, baseURL := range []string{"http://auth/bub", "http://base", "//base"} {
+		for _, canonify := range []bool{true, false} {
+			viper.Set("CanonifyURLs", canonify)
+			viper.Set("BaseURL", baseURL)
+			s := &Site{
+				Source:  &source.InMemorySource{ByteSource: sources},
+				targets: targetList{page: &target.PagePub{UglyURLs: true}},
+			}
+			t.Logf("Rendering with BaseURL %q and CanonifyURLs set %v", viper.GetString("baseURL"), canonify)
+			s.initializeSiteInfo()
 
-		s.prepTemplates("blue/single.html", templateWithURLAbs)
+			s.prepTemplates("blue/single.html", templateWithURLAbs)
 
-		if err := s.createPages(); err != nil {
-			t.Fatalf("Unable to create pages: %s", err)
-		}
-
-		if err := s.buildSiteMeta(); err != nil {
-			t.Fatalf("Unable to build site metadata: %s", err)
-		}
-
-		if err := s.renderPages(); err != nil {
-			t.Fatalf("Unable to render pages. %s", err)
-		}
-
-		tests := []struct {
-			file, expected string
-		}{
-			{"content/blue/doc2.html", "<a href=\"http://auth/bub/foobar.jpg\">Going</a>"},
-			{"sect/doc1.html", "<!doctype html><html><head></head><body><a href=\"#frag1\">link</a></body></html>"},
-		}
-
-		for _, test := range tests {
-
-			file, err := hugofs.Destination().Open(filepath.FromSlash(test.file))
-			if err != nil {
-				t.Fatalf("Unable to locate rendered content: %s", test.file)
+			if err := s.createPages(); err != nil {
+				t.Fatalf("Unable to create pages: %s", err)
 			}
 
-			content := helpers.ReaderToString(file)
-
-			expected := test.expected
-
-			if !canonify {
-				expected = strings.Replace(expected, viper.GetString("baseurl"), "", -1)
+			if err := s.buildSiteMeta(); err != nil {
+				t.Fatalf("Unable to build site metadata: %s", err)
 			}
 
-			if content != expected {
-				t.Errorf("AbsURLify content expected:\n%q\ngot\n%q", expected, content)
+			if err := s.renderPages(); err != nil {
+				t.Fatalf("Unable to render pages. %s", err)
+			}
+
+			tests := []struct {
+				file, expected string
+			}{
+				{"content/blue/doc2.html", "<a href=\"%s/foobar.jpg\">Going</a>"},
+				{"sect/doc1.html", "<!doctype html><html><head></head><body><a href=\"#frag1\">link</a></body></html>"},
+			}
+
+			for _, test := range tests {
+
+				file, err := hugofs.Destination().Open(filepath.FromSlash(test.file))
+				if err != nil {
+					t.Fatalf("Unable to locate rendered content: %s", test.file)
+				}
+
+				content := helpers.ReaderToString(file)
+
+				expected := test.expected
+
+				if strings.Contains(expected, "%s") {
+					expected = fmt.Sprintf(expected, baseURL)
+				}
+
+				if !canonify {
+					expected = strings.Replace(expected, baseURL, "", -1)
+				}
+
+				if content != expected {
+					t.Errorf("AbsURLify with baseURL %q content expected:\n%q\ngot\n%q", baseURL, expected, content)
+				}
 			}
 		}
 	}

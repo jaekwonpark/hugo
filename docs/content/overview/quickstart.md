@@ -11,22 +11,6 @@ title: Hugo Quickstart Guide
 weight: 10
 ---
 
-<!-- 
-  This only a temporary fix!
-
-  Cloudflare doesn't automatically updates the cache with a
-  new version of the stylesheet.
-
-  See #1888
--->
-<style type="text/css">
-  img {
-    max-width: 100%;
-    height: auto;
-  } 
-</style>
-
-
 Building a bookshelf
 ---
 
@@ -222,8 +206,15 @@ $ mkdir themes && cd themes
 Now, you can clone one or more themes inside the `themes` directory. We will use robust theme.
 
 ```bash
-$ git clone git@github.com:dim0627/hugo_theme_robust.git
+$ git clone https://github.com/dim0627/hugo_theme_robust.git
 ```
+
+Leave the themes folder
+
+```bash
+$ cd ..
+```
+
 
 Start the server again
 
@@ -244,7 +235,7 @@ Web Server is available at http://localhost:1313/ (bind address 127.0.0.1)
 Press Ctrl+C to stop
 ```
 
-> ** If Hugo will not find a specific theme in the `themes` directory then it will throw an exception as shown below.**
+> ** If Hugo doesn't find a specific theme in the `themes` directory, it will throw an exception as shown below.**
 ```
 FATAL: 2016/02/14 Unable to find theme Directory: /Users/shekhargulati/bookshelf/themes/robust
 ```
@@ -265,7 +256,7 @@ Let's understand the layout of the theme. A theme consists of following:
 
 ## Step 6. Use multiple themes
 
-You can very easy test different layouts by switching between different themes. Let's suppose we want to try out `bleak` theme. We clone `bleak` theme inside the `themes` directory.
+You can very easily test different layouts by switching between different themes. Let's suppose we want to try out `bleak` theme. We clone `bleak` theme inside the `themes` directory.
 
 ```bash
 $ git clone git@github.com:Zenithar/hugo-theme-bleak.git
@@ -323,7 +314,7 @@ Robust theme is a good start towards our online bookshelf but we to customize it
 
 The first change that we have to make is to use a different default image instead of the one used in the theme. The default image used in both the list and single view page resides inside the `themes/hugo_theme_robust/static/images/default.jpg`. We can easily replace it by creating a simple directory structure inside the `static` directory inside the `bookshelf` directory.
 
-Create images directory inside the static directory and copy an image with name `default.jpg` inside it. We will use the default image shown below.
+Create an images directory inside the static directory and copy an image with name `default.jpg` inside it. We will use the default image shown below.
 
 ![](/img/quickstart/default.jpg)
 

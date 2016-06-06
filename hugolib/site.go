@@ -32,6 +32,7 @@ import (
 	"path"
 
 	"github.com/bep/inflect"
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/afero"
 	"github.com/spf13/cast"
 	bp "github.com/spf13/hugo/bufferpool"
@@ -45,7 +46,6 @@ import (
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/nitro"
 	"github.com/spf13/viper"
-	"gopkg.in/fsnotify.v1"
 )
 
 var _ = transform.AbsURL
@@ -505,11 +505,15 @@ func (s *Site) ReBuild(events []fsnotify.Event) error {
 		}
 
 		file, err := s.reReadFile(ev.Name)
+
 		if err != nil {
-			errs <- err
+			jww.ERROR.Println("Error reading file", ev.Name, ";", err)
 		}
 
-		filechan <- file
+		if file != nil {
+			filechan <- file
+		}
+
 	}
 	// we close the filechan as we have sent everything we want to send to it.
 	// this will tell the sourceReaders to stop iterating on that channel
@@ -559,8 +563,8 @@ func (s *Site) ReBuild(events []fsnotify.Event) error {
 
 		return nil
 	}
-	return err
 
+	return err
 }
 
 func (s *Site) Analyze() error {
@@ -835,7 +839,6 @@ func (s *Site) reReadFile(absFilePath string) (*source.File, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	file, err = source.NewFileFromAbs(s.absContentDir(), absFilePath, reader)
 
 	if err != nil {
@@ -1192,7 +1195,7 @@ func (s *Site) assembleMenus() {
 		if sectionPagesMenu != "" {
 			if _, ok := sectionPagesMenus[p.Section()]; !ok {
 				if p.Section() != "" {
-					me := MenuEntry{Identifier: p.Section(), Name: helpers.MakeTitle(helpers.FirstUpper(p.Section())), URL: s.Info.createNodeMenuEntryURL("/" + p.Section())}
+					me := MenuEntry{Identifier: p.Section(), Name: helpers.MakeTitle(helpers.FirstUpper(p.Section())), URL: s.Info.createNodeMenuEntryURL("/" + p.Section() + "/")}
 					if _, ok := flat[twoD{sectionPagesMenu, me.KeyName()}]; ok {
 						// menu with same id defined in config, let that one win
 						continue
@@ -1243,7 +1246,6 @@ func (s *Site) assembleMenus() {
 
 func (s *Site) assembleTaxonomies() {
 	s.Taxonomies = make(TaxonomyList)
-	s.Sections = make(Taxonomy)
 
 	taxonomies := viper.GetStringMapString("Taxonomies")
 	jww.INFO.Printf("found taxonomies: %#v\n", taxonomies)
@@ -1276,7 +1278,6 @@ func (s *Site) assembleTaxonomies() {
 	}
 
 	s.Info.Taxonomies = s.Taxonomies
-	s.Info.Sections = s.Sections
 }
 
 // Prepare pages for a new full build.
@@ -1291,6 +1292,9 @@ func (s *Site) resetPageBuildState() {
 }
 
 func (s *Site) assembleSections() {
+	s.Sections = make(Taxonomy)
+	s.Info.Sections = s.Sections
+
 	for i, p := range s.Pages {
 		s.Sections.add(p.Section(), WeightedPage{s.Pages[i].Weight, s.Pages[i]}, s.Info.preserveTaxonomyNames)
 	}
@@ -1785,6 +1789,10 @@ func (s *Site) renderHomePage() error {
 		}
 	}
 
+	if viper.GetBool("Disable404") {
+		return nil
+	}
+
 	// TODO(bep) reusing the Home Node smells trouble
 	n.URL = helpers.URLize("404.html")
 	n.IsHome = false
@@ -1970,6 +1978,13 @@ func (s *Site) renderAndWritePage(name string, dest string, d interface{}, layou
 		transformLinks = append(transformLinks, transform.LiveReloadInject)
 	}
 
+	// For performance reasons we only inject the Hugo generator tag on the home page.
+	if n, ok := d.(*Node); ok && n.IsHome {
+		if !viper.GetBool("DisableHugoGeneratorInject") {
+			transformLinks = append(transformLinks, transform.HugoGeneratorInject)
+		}
+	}
+
 	var path []byte
 
 	if viper.GetBool("RelativeURLs") {
@@ -2109,7 +2124,19 @@ func (s *Site) writeDestPage(path string, publisher target.Publisher, reader io.
 }
 
 func (s *Site) writeDestAlias(path string, permalink string) (err error) {
-	jww.DEBUG.Println("creating alias:", path)
+	if viper.GetBool("RelativeURLs") {
+		// convert `permalink` into URI relative to location of `path`
+		baseURL := helpers.SanitizeURLKeepTrailingSlash(viper.GetString("BaseURL"))
+		if strings.HasPrefix(permalink, baseURL) {
+			permalink = "/" + strings.TrimPrefix(permalink, baseURL)
+		}
+		permalink, err = helpers.GetRelativePath(permalink, path)
+		if err != nil {
+			jww.ERROR.Println("Failed to make a RelativeURL alias:", path, "redirecting to", permalink)
+		}
+		permalink = filepath.ToSlash(permalink)
+	}
+	jww.DEBUG.Println("creating alias:", path, "redirecting to", permalink)
 	return s.aliasTarget().Publish(path, permalink)
 }
 
